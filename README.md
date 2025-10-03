@@ -134,22 +134,15 @@ This project uses Xcode's modern build system and requires:
 - macOS 15.2+ SDK
 - Swift 5.0+
 
-### Contributing
-
-1. Fork the repository
-2. Create a feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit your changes (`git commit -m 'Add some amazing feature'`)
-4. Push to the branch (`git push origin feature/amazing-feature`)
-5. Open a Pull Request
-
-### Code Style
+### Code Conventions
 
 This project follows standard Swift conventions:
 
 - Use meaningful variable and function names
 - Include documentation for public APIs
-- Follow the existing architecture patterns
-- Ensure proper memory management
+- Follow the MVC architecture pattern
+- Ensure proper memory management with weak references to avoid retain cycles
+- Use delegation pattern for handling network events
 
 ## Troubleshooting
 

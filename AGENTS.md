@@ -1,11 +1,15 @@
-# Copilot Instructions for bonjour-browser
+# AI Agent Instructions for bonjour-browser
+
+**Last updated:** October 3, 2025
 
 ## Commit Workflow
+
 When asked to "commit the latest changes":
+
 1. Stage all changes with `git add .`
 2. Write a detailed but concise commit message using conventional commits format
 3. Commit the changes with the generated message
-4. Do this automatically without asking for confirmation
+4. **NEVER commit automatically** - only commit when explicitly asked
 
 ## Project Overview
 
@@ -43,4 +47,16 @@ This is a macOS application written in Swift that provides a Bonjour service bro
 - Filterable service list
 - Detailed service information display
 - Support for both standard and peer-to-peer services
+
+---
+
+## Recent Updates & Decisions
+
+### 2025-10-03 - Initial AGENTS.md Creation
+
+- Created master instructions file to centralize all AI agent guidance
+- Moved all instructions from `.github/copilot-instructions.md` to this file
+- Clarified commit workflow: NEVER commit automatically, only when explicitly asked
+- Established structure with timestamp and decision log
+- **Reasoning:** Centralize all coding standards and project conventions in one authoritative source that can evolve with the project
 
