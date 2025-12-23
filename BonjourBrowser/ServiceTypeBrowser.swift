@@ -1,55 +1,55 @@
 import Foundation
-import dnssd
 
 class ServiceTypeBrowser: NSObject {
     var onServiceTypesUpdated: (([String]) -> Void)?
     private var serviceRef: DNSServiceRef?
-    private var source: DispatchSourceProtocol?
+    private var source: DispatchSourceRead?
+    private var discoveredTypes = Set<String>()
 
     func start() {
-        let flags = DNSServiceFlags(kDNSServiceFlagsRegistrationDomains)
-        var errorCode = DNSServiceErrorType(kDNSServiceErr_NoError)
+        print("Starting DNS-SD service type browser")
 
-        // Browse for service types
-        errorCode = DNSServiceBrowse(
-            &serviceRef,
-            flags,
-            0,          // interface index (0 = all interfaces)
-            "_services._dns-sd._udp",
-            "local",    // domain
+        let context = Unmanaged.passUnretained(self).toOpaque()
+        var sdRef: DNSServiceRef?
+
+        // Browse for service types using DNS-SD
+        let err = DNSServiceBrowse(
+            &sdRef,
+            0,  // flags
+            0,  // interface (0 = all interfaces)
+            "_services._dns-sd._udp",  // Service type for discovering service types
+            "local.",  // domain
             { (sdRef, flags, interfaceIndex, errorCode, serviceName, regtype, replyDomain, context) in
-                // This is the callback for each discovered service type
-                guard errorCode == DNSServiceErrorType(kDNSServiceErr_NoError),
-                      let serviceName = serviceName.map({ String(cString: $0) }),
-                      let context = context else {
+                guard errorCode == kDNSServiceErr_NoError,
+                      let context = context,
+                      let serviceName = serviceName else {
                     return
                 }
 
                 let browser = Unmanaged<ServiceTypeBrowser>.fromOpaque(context).takeUnretainedValue()
+                let typeString = String(cString: serviceName)
 
-                // The serviceName here is actually a service type
-                if !serviceName.isEmpty {
-                    DispatchQueue.main.async {
-                        browser.serviceDiscovered(serviceName)
-                    }
+                DispatchQueue.main.async {
+                    browser.handleDiscoveredType(typeString)
                 }
             },
-            Unmanaged.passUnretained(self).toOpaque()
+            context
         )
 
-        guard errorCode == kDNSServiceErr_NoError else {
-            print("Error starting service type browse: \(errorCode)")
+        guard err == kDNSServiceErr_NoError, let serviceRef = sdRef else {
+            print("Error starting service type browse: \(err)")
             return
         }
 
-        // Create a dispatch source for the service ref
-        let queue = DispatchQueue(label: "com.example.dnssd")
-        let descriptor = DNSServiceRefSockFD(serviceRef!)
-        let source = DispatchSource.makeReadSource(fileDescriptor: descriptor, queue: queue)
+        self.serviceRef = serviceRef
+
+        // Set up dispatch source to process results
+        let sock = DNSServiceRefSockFD(serviceRef)
+        let queue = DispatchQueue.main
+        let source = DispatchSource.makeReadSource(fileDescriptor: sock, queue: queue)
 
         source.setEventHandler { [weak self] in
-            guard let self = self,
-                  let serviceRef = self.serviceRef else { return }
+            guard let serviceRef = self?.serviceRef else { return }
             DNSServiceProcessResult(serviceRef)
         }
 
@@ -59,12 +59,24 @@ class ServiceTypeBrowser: NSObject {
 
         self.source = source
         source.resume()
+
+        print("Service type browser started successfully")
     }
 
-    private func serviceDiscovered(_ serviceType: String) {
-        // The service types come back in the format: _servicetype._tcp or _servicetype._udp
-        print("Discovered service type: \(serviceType)")
-        onServiceTypesUpdated?([serviceType])
+    private func handleDiscoveredType(_ typeString: String) {
+        // Service types come back like "_http._tcp" or "_ssh._tcp"
+        if !discoveredTypes.contains(typeString) {
+            discoveredTypes.insert(typeString)
+            print("Discovered service type: \(typeString)")
+
+            // Extract base type (remove transport suffix for callback)
+            let baseType = typeString.replacingOccurrences(of: "._tcp", with: "")
+                                    .replacingOccurrences(of: "._udp", with: "")
+
+            if !baseType.isEmpty && baseType.hasPrefix("_") {
+                onServiceTypesUpdated?([baseType])
+            }
+        }
     }
 
     func stop() {
@@ -82,4 +94,3 @@ class ServiceTypeBrowser: NSObject {
         stop()
     }
 }
-
